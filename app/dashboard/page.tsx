@@ -13,62 +13,61 @@ type Bookmark = {
 
 export default function Dashboard() {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formTitle, setFormTitle] = useState("");
+  const [formUrl, setFormUrl] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   // Check if user is logged in
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
 
-      if (user) {
-        setUserId(user.id);
-      } else {
-        // Redirect to login if not authenticated
+      if (!user) {
         window.location.href = "/";
+        return;
       }
+
+      setCurrentUserId(user.id);
     };
 
-    checkAuth();
+    fetchUser();
   }, []);
 
-  // Fetch user's bookmarks from database
-  const getBookmarks = async (uid: string) => {
+  // Fetch bookmarks for logged-in user
+  const fetchBookmarks = async (userId: string) => {
     const { data, error } = await supabase
       .from("bookmarks")
       .select("*")
-      .eq("user_id", uid)
+      .eq("user_id", userId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching bookmarks:", error);
+      console.error("Failed to load bookmarks:", error.message);
       return;
     }
 
-    setBookmarks(data || []);
+    setBookmarks(data ?? []);
   };
 
-  // Load bookmarks and set up real-time updates
+  // Load data + subscribe to realtime updates
   useEffect(() => {
-    if (!userId) return;
+    if (!currentUserId) return;
 
-    const loadData = async () => {
-      await getBookmarks(userId);
-      setIsLoading(false);
+    const init = async () => {
+      await fetchBookmarks(currentUserId);
+      setLoading(false);
     };
 
-    loadData();
+    init();
 
-    // Subscribe to real-time changes
     const channel = supabase
-      .channel("bookmarks-changes")
+      .channel("bookmark-live-updates")
       .on(
         "postgres_changes",
         {
@@ -77,79 +76,72 @@ export default function Dashboard() {
           table: "bookmarks",
         },
         (payload) => {
-          // Handle INSERT & UPDATE
-          if (
-            payload.new &&
-            (
-              payload.new as {
-                user_id: string;
-              }
-            ).user_id === userId
-          ) {
-            getBookmarks(userId);
+          const changedUserId =
+            (payload.new as { user_id?: string })?.user_id || (payload.old as { user_id?: string })?.user_id;
+
+          if (changedUserId === currentUserId) {
+            fetchBookmarks(currentUserId);
           }
         },
       )
       .subscribe();
 
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [currentUserId]);
 
-  // Add a new bookmark
-  const handleAddBookmark = async () => {
-    if (!title.trim() || !url.trim() || !userId) return;
+  // Add bookmark
+  const addBookmark = async () => {
+    if (!formTitle.trim() || !formUrl.trim() || !currentUserId) return;
 
-    setIsAdding(true);
+    setAdding(true);
 
     const { error } = await supabase.from("bookmarks").insert({
-      title: title.trim(),
-      url: url.trim(),
-      user_id: userId,
+      title: formTitle.trim(),
+      url: formUrl.trim(),
+      user_id: currentUserId,
     });
 
     if (error) {
-      console.error("Error adding bookmark:", error);
-      setIsAdding(false);
+      console.error("Unable to add bookmark:", error.message);
+      setAdding(false);
       return;
     }
 
-    // Clear form
-    setTitle("");
-    setUrl("");
-    setIsAdding(false);
+    setFormTitle("");
+    setFormUrl("");
+    setAdding(false);
   };
 
-  // Remove a bookmark
-  const handleDeleteBookmark = async (id: string) => {
-    if (!userId) return;
+  // 🗑 Soft delete bookmark
+  const deleteBookmark = async (id: string) => {
+    if (!currentUserId) return;
 
-    setDeletingId(id);
+    setRemovingId(id);
 
     const { error } = await supabase
       .from("bookmarks")
       .update({ deleted_at: new Date().toISOString() })
       .eq("id", id)
-      .eq("user_id", userId);
+      .eq("user_id", currentUserId);
 
     if (error) {
-      console.error("Error deleting bookmark:", error);
+      console.error("Failed to delete bookmark:", error.message);
     }
 
-    setDeletingId(null);
+    setRemovingId(null);
   };
 
-  // Sign out user
-  const handleLogout = async () => {
+  // Logout
+  const logout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
   };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="max-w-xl mx-auto p-6 flex justify-center items-center min-h-screen">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-gray-500">Loading your bookmarks...</p>
       </div>
     );
@@ -158,61 +150,64 @@ export default function Dashboard() {
   return (
     <div className="max-w-xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">My Bookmarks</h1>
-        <button onClick={handleLogout} className="text-sm text-red-500 hover:text-red-600 cursor-pointer">
+        <h1 className="text-2xl font-semibold">My Bookmarks</h1>
+        <button onClick={logout} className="text-sm text-red-500 hover:text-red-600">
           Logout
         </button>
       </div>
 
-      {/* Add new bookmark form */}
+      {/* Add Bookmark Form */}
       <div className="space-y-3 mb-8">
         <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          value={formTitle}
+          onChange={(e) => setFormTitle(e.target.value)}
           placeholder="Bookmark title"
-          className="w-full border border-gray-300 p-2 rounded focus:outline-none focus:border-black"
-          disabled={isAdding}
+          disabled={adding}
+          className="w-full border p-2 rounded focus:outline-none focus:border-black"
         />
+
         <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          value={formUrl}
+          onChange={(e) => setFormUrl(e.target.value)}
           placeholder="https://example.com"
-          className="w-full border border-gray-300 p-2 rounded focus:outline-none focus:border-black"
-          disabled={isAdding}
+          disabled={adding}
+          className="w-full border p-2 rounded focus:outline-none focus:border-black"
         />
+
         <button
-          onClick={handleAddBookmark}
-          disabled={isAdding || !title.trim() || !url.trim()}
-          className="w-full bg-black text-white p-2 rounded hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed cursor-pointer transition-colors"
+          onClick={addBookmark}
+          disabled={adding || !formTitle.trim() || !formUrl.trim()}
+          className="w-full bg-black text-white p-2 rounded hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
         >
-          {isAdding ? "Adding..." : "Add Bookmark"}
+          {adding ? "Adding..." : "Add Bookmark"}
         </button>
       </div>
 
-      {/* List of bookmarks */}
+      {/* Bookmark List */}
       <div className="space-y-3">
         {bookmarks.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-8">No bookmarks yet. Add your first one above!</p>
+          <p className="text-sm text-gray-500 text-center py-8">No bookmarks added yet. Start by adding one above.</p>
         ) : (
           bookmarks.map((bookmark) => (
             <div
               key={bookmark.id}
-              className="flex justify-between items-center border border-gray-200 p-3 rounded hover:border-gray-300 transition-colors"
+              className="flex justify-between items-center border p-3 rounded hover:border-gray-400 transition"
             >
               <a
                 href={bookmark.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                className="text-blue-600 hover:text-blue-700 underline"
               >
                 {bookmark.title}
               </a>
+
               <button
-                onClick={() => handleDeleteBookmark(bookmark.id)}
-                disabled={deletingId === bookmark.id}
-                className="text-red-500 hover:text-red-600 text-sm cursor-pointer disabled:text-red-300 disabled:cursor-not-allowed"
+                onClick={() => deleteBookmark(bookmark.id)}
+                disabled={removingId === bookmark.id}
+                className="text-sm text-red-500 hover:text-red-600 disabled:text-red-300 disabled:cursor-not-allowed"
               >
-                {deletingId === bookmark.id ? "Deleting..." : "Delete"}
+                {removingId === bookmark.id ? "Deleting..." : "Delete"}
               </button>
             </div>
           ))
