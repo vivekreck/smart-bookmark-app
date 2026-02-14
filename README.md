@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bookmark Management Application
 
-## Getting Started
+A simple and secure bookmark management application where users can log in, add bookmarks, view them in real time, and remove them using soft deletion.
 
-First, run the development server:
+This project demonstrates clean frontend architecture, Supabase integration, authentication handling, and real-world CRUD patterns.
+
+---
+
+## Live Production URL
+
+**Production URL:**  
+_To be added_
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- Next.js (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+
+### Backend & Infrastructure
+
+- Supabase
+  - Authentication
+  - PostgreSQL Database
+  - Realtime Subscriptions
+
+---
+
+## Prerequisites
+
+Before running the project, make sure you have:
+
+- Node.js (v18 or higher)
+- npm or yarn
+- A Supabase account
+- Supabase Project URL
+- Supabase Anon Public Key
+
+Download Node.js from:  
+https://nodejs.org/
+
+---
+
+## How to Clone and Run the Application
+
+### 1️⃣ Clone the Repository
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/vivekreck/smart-bookmark-app
+cd bookmark-dashboard
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2️⃣ Install Dependencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3️⃣ Configure Environment Variables
 
-## Learn More
+Create a .env.local file in the root directory and add:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+You can find these values inside your Supabase Project → Settings → API.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4️⃣ Run the Application
 
-## Deploy on Vercel
+npm run dev
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### The application will run at:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+http://localhost:3000
