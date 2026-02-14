@@ -9,7 +9,7 @@ This project demonstrates clean frontend architecture, Supabase integration, aut
 ## Live Production URL
 
 **Production URL:**  
-_To be added_
+https://smart-bookmark-app-amber.vercel.app
 
 ---
 
@@ -74,7 +74,9 @@ You can find these values inside your Supabase Project → Settings → API.
 
 ### 4️⃣ Run the Application
 
+```bash
 npm run dev
+```
 
 ### The application will run at:
 
